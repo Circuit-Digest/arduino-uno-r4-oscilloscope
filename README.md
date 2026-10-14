@@ -105,17 +105,45 @@ DIVIDER_RATIO = 10000 / (15000 + 10000) = 0.4
 ## 🗂️ Project Structure
 
 ```
-oscilloscope_code/
+arduino-uno-r4-oscilloscope/
 │
-├── oscilloscope_code.ino          <- Main sketch
+├── oscilloscope_code/
+│   ├── oscilloscope_code.ino          <- Main sketch
+│   │
+│   └── src/
+│       └── src/
+│           ├── TFT_22_ILI9225_Local.h      <- Patched library header
+│           ├── TFT_22_ILI9225_Local.cpp    <- Patched library implementation
+│           ├── DefaultFonts.c              <- Display font data
+│           └── gfxfont.h                   <- Font struct definitions
 │
-└── src/
-    └── src/
-        ├── TFT_22_ILI9225_Local.h      <- Patched library header
-        ├── TFT_22_ILI9225_Local.cpp    <- Patched library implementation
-        ├── DefaultFonts.c              <- Display font data
-        └── gfxfont.h                   <- Font struct definitions
+└── 3d files/                              <- 3D enclosure design files (STL/STEP/F3D)
 ```
+
+---
+
+## 🖨️ 3D Printed Enclosure
+
+A custom **3D-printed enclosure** has been designed for this project, housing the Arduino Uno R4 Minima, the ILI9225 TFT display, the rotary encoder, and the freeze button in a compact, handheld form factor.
+
+The design files are located in the [`3d files/`](./3d%20files/) folder:
+
+| File | Description |
+|---|---|
+| `oscilloscope_enclosure.stl` | STL mesh of the enclosure — ready for slicing |
+| `*.step` / `*.f3d` | Editable source files (Fusion 360 / FreeCAD) — to be added |
+
+### 🖨️ Print Settings (recommended)
+
+| Setting | Value |
+|---|---|
+| **Material** | PLA or PETG |
+| **Layer Height** | 0.2 mm |
+| **Infill** | 20–30% |
+| **Supports** | As needed (for overhangs around display cutout) |
+| **Perimeters** | 3 |
+
+> 📁 The `3d files/` folder may be updated with new revisions as the design is refined. Check back for the latest version.
 
 ---
 
