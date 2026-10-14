@@ -1,0 +1,14 @@
+﻿# Arduino build artifacts
+*.bak
+*.hex
+*.elf
+
+# Backup folders
+backup/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
