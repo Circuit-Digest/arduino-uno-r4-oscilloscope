@@ -1,0 +1,7 @@
+# scope_viewer dependencies
+# Install with: pip install -r requirements.txt
+
+pyserial>=3.5
+Pillow>=9.0
+opencv-python>=4.8
+numpy>=1.20
