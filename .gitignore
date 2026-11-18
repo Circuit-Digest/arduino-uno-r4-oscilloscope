@@ -12,3 +12,9 @@ Thumbs.db
 
 # IDE files
 .vscode/
+
+# Python / scope_viewer generated
+__pycache__/
+*.pyc
+scope_viewer/viewer/screenshots/
+scope_viewer/viewer/recordings/

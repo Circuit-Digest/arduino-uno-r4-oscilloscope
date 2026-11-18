@@ -29,7 +29,7 @@ from serial_reader import SerialReader, list_serial_ports
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# ADC CALIBRATION (matches companion pc_stream.ino)
+# ADC CALIBRATION (matches Oscilloscope.ino)
 # ══════════════════════════════════════════════════════════════════════════════
 
 ADC_VREF      = 5.0
@@ -50,6 +50,8 @@ WAVE_X   = 60        # left edge of waveform area (margin for Y-axis voltage lab
 WAVE_Y   = 18        # top edge of waveform area
 WAVE_W   = CANVAS_W - WAVE_X - 16   # waveform width
 WAVE_H   = CANVAS_H - WAVE_Y - 32   # waveform height
+
+REC_GEOM = (WAVE_X, WAVE_Y, WAVE_W, WAVE_H)   # fixed geometry for PNG/MP4 output
 
 POLL_MS  = 50        # UI poll interval → ~20 FPS for silky-smooth display & recording
 
@@ -127,7 +129,14 @@ class OscilloscopeApp:
         self.root = tk.Tk()
         self.root.title("Scope Viewer · Arduino UNO R4 Oscilloscope")
         self.root.configure(bg=C_APP_BG)
-        self.root.resizable(False, False)
+        self.root.state("zoomed")                     # start maximized
+        self.root.bind("<F11>", self._toggle_fullscreen)
+        self.root.bind("<Escape>", lambda e: self.root.attributes("-fullscreen", False))
+
+        # On-screen waveform geometry (x, y, w, h) — resized with the canvas.
+        # Recording/screenshots always use the fixed WAVE_* constants.
+        self._g: tuple[float, float, float, float] = (WAVE_X, WAVE_Y, WAVE_W, WAVE_H)
+        self._cw, self._ch = CANVAS_W, CANVAS_H
 
         # ── State ─────────────────────────────────────────────────────────────
         self._queue: queue.Queue               = queue.Queue(maxsize=64)
@@ -349,7 +358,7 @@ class OscilloscopeApp:
 
     def _build_canvas_area(self) -> None:
         wrapper = tk.Frame(self.root, bg=C_APP_BG, padx=10, pady=8)
-        wrapper.pack()
+        wrapper.pack(fill=tk.BOTH, expand=True)
 
         self._canvas = tk.Canvas(
             wrapper,
@@ -359,7 +368,8 @@ class OscilloscopeApp:
             highlightthickness=1,
             cursor="crosshair",
         )
-        self._canvas.pack()
+        self._canvas.pack(fill=tk.BOTH, expand=True)
+        self._canvas.bind("<Configure>", self._on_canvas_resize)
 
     # ── Scale Adjustments ─────────────────────────────────────────────────────
 
@@ -462,9 +472,23 @@ class OscilloscopeApp:
     # OSCILLOSCOPE GRID & LABELS
     # ══════════════════════════════════════════════════════════════════════════
 
+    def _on_canvas_resize(self, event: tk.Event) -> None:
+        self._cw, self._ch = event.width, event.height
+        self._g = (WAVE_X, WAVE_Y, max(100, event.width - WAVE_X - 16), max(80, event.height - WAVE_Y - 32))
+        self._draw_grid()
+        if self._connected and self._wave_data:
+            self._render_wave(
+                self._samples_to_points(self._wave_data),
+                *((C_WAVE_FREEZE, C_WAVE_FRZ_GL) if self._frozen else (C_WAVE, C_WAVE_GLOW)),
+            )
+
+    def _toggle_fullscreen(self, _event=None) -> None:
+        self.root.attributes("-fullscreen", not self.root.attributes("-fullscreen"))
+
     def _draw_grid(self) -> None:
         self._canvas.delete("grid")
 
+        WAVE_X, WAVE_Y, WAVE_W, WAVE_H = self._g   # shadow constants with live geometry
         dw = WAVE_W / DIVS_X
         dh = WAVE_H / DIVS_Y
         cx = WAVE_X + WAVE_W / 2
@@ -542,6 +566,7 @@ class OscilloscopeApp:
         except ValueError:
             vdiv = 2.0
 
+        WAVE_X, WAVE_Y, WAVE_W, WAVE_H = self._g
         dh = WAVE_H / DIVS_Y
         for j in range(DIVS_Y + 1):
             y = WAVE_Y + j * dh
@@ -563,8 +588,9 @@ class OscilloscopeApp:
     # WAVEFORM RENDERING (Canvas + Frame Generator for Video & Screenshot)
     # ══════════════════════════════════════════════════════════════════════════
 
-    def _samples_to_points(self, samples: list[int]) -> list[float]:
-        """Convert 8-bit raw samples to canvas (x, y) coordinates."""
+    def _samples_to_points(self, samples: list[int], geom=None) -> list[float]:
+        """Convert 8-bit raw samples to (x, y) points. geom=(x, y, w, h); default on-screen."""
+        WAVE_X, WAVE_Y, WAVE_W, WAVE_H = geom or self._g
         if not samples or len(samples) < 2:
             return []
         try:
@@ -606,31 +632,33 @@ class OscilloscopeApp:
         pts = self._samples_to_points(samples)
         self._render_wave(pts, C_WAVE, C_WAVE_GLOW)
         if self._recording:
-            self._capture_frame(pts, C_WAVE, "LIVE")
+            self._capture_frame(self._samples_to_points(samples, REC_GEOM), C_WAVE, "LIVE")
 
     def _draw_frozen_wave(self, samples: list[int]) -> None:
         pts = self._samples_to_points(samples)
         self._render_wave(pts, C_WAVE_FREEZE, C_WAVE_FRZ_GL)
         if self._recording:
-            self._capture_frame(pts, C_WAVE_FREEZE, "FROZEN")
+            self._capture_frame(self._samples_to_points(samples, REC_GEOM), C_WAVE_FREEZE, "FROZEN")
+
+    def _demo_points(self, geom) -> list[float]:
+        """Placeholder sine points for geometry (x, y, w, h)."""
+        x0, y0, w, h = geom
+        pts: list[float] = []
+        for i in range(256):
+            t   = i / 255
+            val = (0.50 * math.sin(2 * math.pi * 3.0 * t + self._demo_phase)
+                 + 0.12 * math.sin(2 * math.pi * 6.0 * t + self._demo_phase * 1.5))
+            y = max(y0 + 1, min(y0 + h - 1, y0 + h / 2 - val * h * 0.40))
+            pts.extend([x0 + t * w, y])
+        return pts
 
     def _draw_demo_wave(self) -> None:
         """Animate clean placeholder sine wave while disconnected."""
         self._canvas.delete("wave")
         self._canvas.delete("demo_lbl")
 
-        n   = 256
-        phi = self._demo_phase
-        pts: list[float] = []
-
-        for i in range(n):
-            t   = i / (n - 1)
-            val = (0.50 * math.sin(2 * math.pi * 3.0 * t + phi)
-                 + 0.12 * math.sin(2 * math.pi * 6.0 * t + phi * 1.5))
-            x   = WAVE_X + t * WAVE_W
-            y   = WAVE_Y + WAVE_H / 2 - val * WAVE_H * 0.40
-            y   = max(WAVE_Y + 1, min(WAVE_Y + WAVE_H - 1, y))
-            pts.extend([x, y])
+        wx, wy, ww, wh = self._g
+        pts = self._demo_points(self._g)
 
         self._canvas.create_line(
             pts, fill=C_WAVE_DEM_GL, width=5,
@@ -642,17 +670,17 @@ class OscilloscopeApp:
         )
 
         self._canvas.create_text(
-            WAVE_X + WAVE_W / 2,
-            WAVE_Y + WAVE_H / 2 + 60,
+            wx + ww / 2,
+            wy + wh / 2 + 60,
             text="DEMO MODE · Connect Arduino UNO R4 to view live signal",
             font=("Segoe UI", 9), fill="#475569",
             tags="demo_lbl",
         )
 
-        self._demo_phase -= 0.08
-
         if self._recording:
-            self._capture_frame(pts, C_WAVE_DEMO, "DEMO")
+            self._capture_frame(self._demo_points(REC_GEOM), C_WAVE_DEMO, "DEMO")
+
+        self._demo_phase -= 0.08
 
     # ══════════════════════════════════════════════════════════════════════════
     # DEMO & QUEUE POLLING LOOPS
@@ -971,23 +999,13 @@ class OscilloscopeApp:
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             path = os.path.join(out_dir, f"scope_{ts}.png")
 
-            # Obtain current waveform points
+            # Obtain current waveform points (fixed screenshot geometry)
             if self._connected and self._wave_data:
-                pts = self._samples_to_points(self._wave_data)
+                pts = self._samples_to_points(self._wave_data, REC_GEOM)
                 col = C_WAVE_FREEZE if self._frozen else C_WAVE
                 st  = "FROZEN" if self._frozen else "LIVE"
             else:
-                n   = 256
-                phi = self._demo_phase
-                pts = []
-                for i in range(n):
-                    t   = i / (n - 1)
-                    val = (0.50 * math.sin(2 * math.pi * 3.0 * t + phi)
-                         + 0.12 * math.sin(2 * math.pi * 6.0 * t + phi * 1.5))
-                    x   = WAVE_X + t * WAVE_W
-                    y   = WAVE_Y + WAVE_H / 2 - val * WAVE_H * 0.40
-                    y   = max(WAVE_Y + 1, min(WAVE_Y + WAVE_H - 1, y))
-                    pts.extend([x, y])
+                pts = self._demo_points(REC_GEOM)
                 col = C_WAVE_DEMO
                 st  = "DEMO"
 

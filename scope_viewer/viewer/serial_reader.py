@@ -2,7 +2,7 @@
 serial_reader.py — scope_viewer
 ────────────────────────────────
 Background thread that reads WAVE: and META: packets from the
-Arduino pc_stream.ino sketch and pushes parsed data into a
+Arduino Oscilloscope.ino sketch and pushes parsed data into a
 thread-safe queue for consumption by the Tkinter UI thread.
 """
 

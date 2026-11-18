@@ -4,9 +4,24 @@
 
 ---
 
-## 📸 Preview
+<p align="center">
+  <img src="images/hero.png" alt="DIY Oscilloscope using Arduino UNO R4 Minima" width="640">
+</p>
 
-> *(Add a photo of your oscilloscope here)*
+<p align="center">
+  <a href="https://circuitdigest.com/microcontroller-projects/diy-oscilloscope-with-arduino">Full Build Article</a> ·
+  <a href="https://www.youtube.com/watch?v=E4Z8PrNBXRs">Video</a> ·
+  <a href="#-circuit-diagram">Circuit Diagram</a> ·
+  <a href="#-optional-pc-viewer-python">PC Viewer</a>
+</p>
+
+---
+
+## ▶️ Watch It Work
+
+[![Watch the DIY Arduino oscilloscope in action](images/hero.png)](https://www.youtube.com/watch?v=E4Z8PrNBXRs)
+
+Step-by-step build, code walkthrough and testing: **[read the full article on CircuitDigest](https://circuitdigest.com/microcontroller-projects/diy-oscilloscope-with-arduino)**.
 
 ---
 
@@ -35,6 +50,10 @@
 | **Signal input** | Analog voltage via voltage divider on A0 |
 
 ---
+
+## 🔌 Circuit Diagram
+
+![Circuit diagram: Arduino UNO R4 Minima, TFT display, rotary encoder and input voltage divider](images/circuit_diagram.png)
 
 ## 📌 Wiring / Pin Map
 
@@ -65,6 +84,14 @@
 | Oscilloscope Input | A0 |
 
 > ⚠️ **Important:** A0 requires a **voltage divider** circuit to protect the Arduino ADC from over-voltage. See calibration section below.
+
+---
+
+## 🚀 Quick Start
+
+1. Wire the circuit as shown above.
+2. Open [`oscilloscope_code/oscilloscope_code.ino`](oscilloscope_code/oscilloscope_code.ino) in the Arduino IDE (keep the `src/` folder next to it).
+3. Select **Arduino UNO R4 Minima**, then upload.
 
 ---
 
@@ -102,22 +129,31 @@ DIVIDER_RATIO = 10000 / (15000 + 10000) = 0.4
 
 ---
 
+## 🖥️ Optional PC Viewer (Python)
+
+Want the waveform on your PC? [`scope_viewer/`](scope_viewer/README.md) streams the same measurements over USB serial into a desktop window with freeze, V/div and T/div control, PNG screenshots and MP4 recording. It uses its own serial-streaming sketch, so the TFT sketch above stays untouched.
+
+```bash
+pip install -r scope_viewer/viewer/requirements.txt
+python scope_viewer/viewer/viewer.py
+```
+
+Flash `scope_viewer/Oscilloscope/Oscilloscope.ino` first. Details in the [viewer README](scope_viewer/README.md).
+
+---
+
 ## 🗂️ Project Structure
 
 ```
 arduino-uno-r4-oscilloscope/
-│
 ├── oscilloscope_code/
-│   ├── oscilloscope_code.ino          <- Main sketch
-│   │
-│   └── src/
-│       └── src/
-│           ├── TFT_22_ILI9225_Local.h      <- Patched library header
-│           ├── TFT_22_ILI9225_Local.cpp    <- Patched library implementation
-│           ├── DefaultFonts.c              <- Display font data
-│           └── gfxfont.h                   <- Font struct definitions
-│
-└── 3d files/                              <- 3D enclosure design files (STL/STEP/F3D)
+│   ├── oscilloscope_code.ino      <- Main Arduino sketch (TFT display)
+│   └── src/src/                   <- Patched TFT library + fonts
+├── 3d files/                      <- 3D enclosure (STL)
+├── images/                        <- Hero photo, circuit diagram
+└── scope_viewer/                  <- Optional PC viewer
+    ├── Oscilloscope/              <- Serial-streaming sketch for the viewer
+    └── viewer/                    <- Python app
 ```
 
 ---
